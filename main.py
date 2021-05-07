@@ -8,7 +8,7 @@ ACCELERATION_MIN = 0.4
 ACCELERATION_MAX = 2
 
 from tqdm import tqdm
-
+import json
 
 def _generate_accelerate_coefs(size, phi):
     return np.random.uniform(low=0, high=phi, size=size)
@@ -151,6 +151,7 @@ class Swarm:
         self.best_position = np.copy(self.particles[0].best_position)
         self.best_score = math.inf
         self.subswarms = []
+        self.history = []
 
     def step(self, iteration, iteration_ratio, r_n_s):
 
@@ -177,23 +178,45 @@ class Swarm:
 
 
 class MPSOAlgorithm:
-    def __init__(self, swarm: Swarm, iterations: int, recreate_new_subswarms: int):
+    def __init__(self, swarm: Swarm, iterations: int, epsilon: float, recreate_new_subswarms: int, stop_criterion):
         self.swarm = swarm
         self.iterations = iterations
+        self.epsilon = epsilon
+        self.stop_criterion = stop_criterion
         self.r_n_s = recreate_new_subswarms
 
-    def run(self):
+        self.max_iter = 10000
+
+    def iteration_run(self):
+        history = []
         for i in tqdm(range(self.iterations)):
             best_score, _ = self.swarm.step(i, i / self.iterations, self.r_n_s)
+            history.append(best_score)
             # print(f'{i}: {best_score}')
-        return best_score, self.iterations
+        return best_score, self.iterations, history
+
+    def epsilon_run(self):
+        best_score = math.inf
+        history = []
+        for i in tqdm(range(self.max_iter)):
+            best_score, _ = self.swarm.step(i, i / self.iterations, self.r_n_s)
+            history.append(best_score)
+            if best_score < epsilon:
+                return best_score, i, history
+        return best_score, self.max_iter, history
+
+    def run(self):
+        if self.stop_criterion == 'iteration':
+            return self.iteration_run()
+        else:
+            return self.epsilon_run()
 
 
 if __name__ == '__main__':
     functions = [
         {'function': sphere_func,
-         'low_range': -10,
-         'high_range': 10,
+         'low_range': -100,
+         'high_range': 100,
          'epsilon': 0.001,
          },
         # {
@@ -226,6 +249,7 @@ if __name__ == '__main__':
     populations = [100, 500]
     subwarms_numbers = [5, 20]
     recreations = [20, 100]
+    stop_criterions = ['iteration', 'epsilon']
 
     for _fun in functions:
         epsilon = _fun['epsilon']
@@ -233,13 +257,42 @@ if __name__ == '__main__':
         high_range = _fun['high_range']
         function = _fun['function']
 
+        json_content = {"results": []}
+
         for dimension in dimensions:
             for population in populations:
                 for subwarms_number in subwarms_numbers:
                     for recreation in recreations:
-                        print(f'[] Fitness: {function.__name__}, dimensions: {dimension}, population: {population}, subwarms: {subwarms_number}, recreation: {recreation}')
-                        swarm = Swarm(population, dimension, low_range, high_range, function, linear_interpolation, subwarms_number)
+                        for stop_criterion in stop_criterions:
 
-                        mpso_algorithm = MPSOAlgorithm(swarm, 1000, recreation)
-                        result = mpso_algorithm.run()
-                        print(result)
+                            dict_result = {
+                                "function": function.__name__,
+                                "dimensions": dimension,
+                                "population_size": population,
+                                "subwarms": subwarms_number,
+                                "recreation": recreation,
+                                "criterion": stop_criterion
+                            }
+
+                            scores = []
+                            iterations = []
+                            histories = []
+                            for i in range(2):
+                                print(f'[{i}] Fitness: {function.__name__}, variant: {stop_criterion}, dimensions: {dimension}, population: {population}, subwarms: {subwarms_number}, recreation: {recreation}')
+                                swarm = Swarm(population, dimension, low_range, high_range, function, linear_interpolation, subwarms_number)
+
+                                mpso_algorithm = MPSOAlgorithm(swarm, 1000, epsilon, recreation, stop_criterion)
+                                result = mpso_algorithm.run()
+                                scores.append(result[0])
+                                iterations.append(result[1])
+                                histories.append(result[2])
+                                print(result)
+
+                            dict_result['mean_score'] = sum(scores) / len(scores)
+                            dict_result['mean_iterations'] = sum(iterations) / len(iterations)
+                            dict_result['histories'] = histories
+
+                            json_content['results'].append(dict_result)
+
+        with open(f'{function.__name__}.json', 'w') as outfile:
+            json.dump(json_content, outfile)

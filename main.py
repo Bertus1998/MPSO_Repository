@@ -183,11 +183,12 @@ class MPSOAlgorithm:
     def run(self):
         for i in range(self.iterations):
             best_score, _ = self.swarm.step(self.iterations, self.r_n_s)
+            print(f'{i}: {best_score}')
         return best_score, self.iterations
 
 
 if __name__ == '__main__':
-    swarm = Swarm(10000, 10, 0, 10, f2_func, const_function, 5)
-    mpso_algorithm = MPSOAlgorithm(swarm, 10, 1)
+    swarm = Swarm(1000, 10, 0, 10, f2_func, linear_interpolation, 5)
+    mpso_algorithm = MPSOAlgorithm(swarm, 1000, 10)
     result = mpso_algorithm.run()
     print(result)

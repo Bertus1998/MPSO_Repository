@@ -7,6 +7,8 @@ from openpyxl import Workbook
 ACCELERATION_MIN = 0.4
 ACCELERATION_MAX = 2
 
+from tqdm import tqdm
+
 
 def _generate_accelerate_coefs(size, phi):
     return np.random.uniform(low=0, high=phi, size=size)
@@ -150,9 +152,9 @@ class Swarm:
         self.best_score = math.inf
         self.subswarms = []
 
-    def step(self, iteration_ratio, r_n_s):
+    def step(self, iteration, iteration_ratio, r_n_s):
 
-        if iteration_ratio % r_n_s == 0:
+        if iteration % r_n_s == 0:
             self.subswarms.clear()
             particles = self.particles.copy()
             x = self.particle_number - 1
@@ -168,9 +170,9 @@ class Swarm:
                     SubSwarm(temp_particles, self.dimensions, self.x_from, self.x_to, self.func, self.ac_func))
 
         for subswarm in self.subswarms:
-            score, best_position = subswarm.step(1 / iteration_ratio)
+            score, best_position = subswarm.step(iteration_ratio)
             if score < self.best_score:
-                self.best_score, self.best_position = subswarm.step(1 / iteration_ratio)
+                self.best_score, self.best_position = subswarm.step(iteration_ratio)
         return self.best_score, self.best_position
 
 
@@ -181,14 +183,63 @@ class MPSOAlgorithm:
         self.r_n_s = recreate_new_subswarms
 
     def run(self):
-        for i in range(self.iterations):
-            best_score, _ = self.swarm.step(self.iterations, self.r_n_s)
-            print(f'{i}: {best_score}')
+        for i in tqdm(range(self.iterations)):
+            best_score, _ = self.swarm.step(i, i / self.iterations, self.r_n_s)
+            # print(f'{i}: {best_score}')
         return best_score, self.iterations
 
 
 if __name__ == '__main__':
-    swarm = Swarm(1000, 10, 0, 10, f2_func, linear_interpolation, 5)
-    mpso_algorithm = MPSOAlgorithm(swarm, 1000, 10)
-    result = mpso_algorithm.run()
-    print(result)
+    functions = [
+        {'function': sphere_func,
+         'low_range': -10,
+         'high_range': 10,
+         'epsilon': 0.001,
+         },
+        # {
+        #     'function': leeyao_func,
+        #     'low_range': -10,
+        #     'high_range': 10,
+        #     'epsilon': 0.01,
+        # },
+        # {
+        #     'function': schwefel_func,
+        #     'low_range': -10,
+        #     'high_range': 10,
+        #     'epsilon': 0.000001,
+        # },
+        # {
+        #     'function': f2_func,
+        #     'low_range': -100,
+        #     'high_range': 100,
+        #     'epsilon': 0.0001,
+        # },
+        # {
+        #     'function': griewank_func,
+        #     'low_range': -600,
+        #     'high_range': 600,
+        #     'epsilon': 0.1,
+        # },
+    ]
+
+    dimensions = [5, 20]
+    populations = [100, 500]
+    subwarms_numbers = [5, 20]
+    recreations = [20, 100]
+
+    for _fun in functions:
+        epsilon = _fun['epsilon']
+        low_range = _fun['low_range']
+        high_range = _fun['high_range']
+        function = _fun['function']
+
+        for dimension in dimensions:
+            for population in populations:
+                for subwarms_number in subwarms_numbers:
+                    for recreation in recreations:
+                        print(f'[] Fitness: {function.__name__}, dimensions: {dimension}, population: {population}, subwarms: {subwarms_number}, recreation: {recreation}')
+                        swarm = Swarm(population, dimension, low_range, high_range, function, linear_interpolation, subwarms_number)
+
+                        mpso_algorithm = MPSOAlgorithm(swarm, 1000, recreation)
+                        result = mpso_algorithm.run()
+                        print(result)

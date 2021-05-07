@@ -219,12 +219,12 @@ if __name__ == '__main__':
          'high_range': 100,
          'epsilon': 0.001,
          },
-        # {
-        #     'function': leeyao_func,
-        #     'low_range': -10,
-        #     'high_range': 10,
-        #     'epsilon': 0.01,
-        # },
+        {
+            'function': leeyao_func,
+            'low_range': -10,
+            'high_range': 10,
+            'epsilon': 0.01,
+        },
         # {
         #     'function': schwefel_func,
         #     'low_range': -10,
@@ -277,7 +277,7 @@ if __name__ == '__main__':
                             scores = []
                             iterations = []
                             histories = []
-                            for i in range(2):
+                            for i in range(10):
                                 print(f'[{i}] Fitness: {function.__name__}, variant: {stop_criterion}, dimensions: {dimension}, population: {population}, subwarms: {subwarms_number}, recreation: {recreation}')
                                 swarm = Swarm(population, dimension, low_range, high_range, function, linear_interpolation, subwarms_number)
 
@@ -286,7 +286,7 @@ if __name__ == '__main__':
                                 scores.append(result[0])
                                 iterations.append(result[1])
                                 histories.append(result[2])
-                                print(result)
+                                print(f'Score: {result[0]} Iterations: {result[1]}')
 
                             dict_result['mean_score'] = sum(scores) / len(scores)
                             dict_result['mean_iterations'] = sum(iterations) / len(iterations)
